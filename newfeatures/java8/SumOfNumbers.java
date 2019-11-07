@@ -10,18 +10,18 @@ public class TestClass {
 
         List<Integer> integers = Arrays.asList(1, 2, 3, 4, 5);
 
-        // sum of list of numbers
+        // sum of list of numbers using Collectors.summingInt
         Integer sum = integers.stream()
                 .collect(Collectors.summingInt(Integer::intValue));
         System.out.println("Sum ------->"+ sum);
 
-        // sum of list of square of numbers
+        // sum of list of square of numbers using map and Collectors.summingInt
         Integer sumSq = integers.stream()
                 .map(val -> getSquare(val))
                 .collect(Collectors.summingInt(Integer::intValue));
         System.out.println("Sum of squares using map & summingInt ------->"+ sumSq);
 
-        // sum of list of numbers reduce
+        // sum of list of numbers using reduce
         Integer sum1 = integers.stream()
                 .reduce(0, (a, b) -> a + b);
         System.out.println("Sum using reduce ------->"+ sum1);
