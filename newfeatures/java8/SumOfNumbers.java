@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class TestClass {
+public class SumOfNumbers {
 
     public static void main(String args[]){
 
