@@ -14,6 +14,7 @@ public class SpringShedulerConfigCustomThreadPool implements SchedulingConfigure
 
     @Override
     public void configureTasks(ScheduledTaskRegistrar scheduledTaskRegistrar) {
+        // create custom threadPool
         ThreadPoolTaskScheduler threadPoolTaskScheduler = new ThreadPoolTaskScheduler();
 
         threadPoolTaskScheduler.setPoolSize(POOL_SIZE);
@@ -21,5 +22,32 @@ public class SpringShedulerConfigCustomThreadPool implements SchedulingConfigure
         threadPoolTaskScheduler.initialize();
 
         scheduledTaskRegistrar.setTaskScheduler(threadPoolTaskScheduler);
+        
+        // Trigger task every few seconds
+    /*     taskRegistrar.addTriggerTask(
+            /*  Iterate over all the jobs that need to be process
+             *  1) The retry count must be below or equal to the threshold 'dispatchAgentRequestQueue.getRetryLimit()
+             *      If the retry is '0', then '1' call needs to be processes to EMMA. Therefore, the equal threshold.
+             *  2) Jobs need to be process after they have exceeded the request threshold 'dispatchAgentRequestQueue.getTimeInMin()'
+            */
+            () -> {
+                LocalDateTime localDateTime = LocalDateTime.now();
+                Lists.newArrayList(agentRequestRepo.findAll())
+                .parallelStream()
+                .filter(r -> r.getRetryCount() <= dispatchAgentRequestQueue.getDefaultedRetryLimit())
+                .filter(r -> MINUTES.between(r.getRequestedOn(),localDateTime) > dispatchAgentRequestQueue.getDefaultedRetryTimeInMin())
+                .forEach(this::safeOverrideEntity);
+            }
+            //  Execute this thread after 'x' amount of minutes
+            ,
+            (TriggerContext triggerContext) -> {
+                Calendar nextExecutionTime =  new GregorianCalendar();
+                Date lastActualExecutionTime = triggerContext.lastActualExecutionTime();
+                nextExecutionTime.setTime(lastActualExecutionTime != null ? lastActualExecutionTime : new Date());
+                nextExecutionTime.add(Calendar.MINUTE, dispatchAgentRequestQueue.getDefaultedRetryTimeInMin());
+                return nextExecutionTime.getTime();
+            }
+        );
+        */
     }
 }
