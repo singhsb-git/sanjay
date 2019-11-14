@@ -7,6 +7,7 @@ import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
 // configuring Spring to use your own thread pool instead of the default one.
 
+@EnableScheduling
 @Configuration
 public class SpringShedulerConfigCustomThreadPool implements SchedulingConfigurer {
     private final int POOL_SIZE = 10;
