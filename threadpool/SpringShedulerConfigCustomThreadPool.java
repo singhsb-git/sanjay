@@ -49,5 +49,20 @@ public class SpringShedulerConfigCustomThreadPool implements SchedulingConfigure
             }
         );
         */
+         
+            //Simpleiefied version
+          taskRegistrar.addTriggerTask( myTask(),
+                                        (TriggerContext triggerContext) -> {
+                                            Calendar nextExecutionTime =  new GregorianCalendar();
+                                            Date lastActualExecutionTime = triggerContext.lastActualExecutionTime();
+                                            nextExecutionTime.setTime(lastActualExecutionTime != null ? lastActualExecutionTime : new Date());
+                                            nextExecutionTime.add(Calendar.MINUTE, dispatchAgentRequestQueue.getDefaultedRetryTimeInMin());
+                                            return nextExecutionTime.getTime();
+                                        });
+                                       
     }
+            
+     private void myTask(){
+         
+     }
 }
