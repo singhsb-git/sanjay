@@ -1,42 +1,89 @@
-public class CustomerRefreshRequest {
-    private String customerId;
+package com.gs.cft.digital.cftcustomerhub.application.complianceCustomerRefresh.util;
 
-    public CustomerRefreshRequest(String customerId){
-        this.customerId = customerId;
+import com.gs.cft.digital.cftcustomerhub.application.complianceCustomerRefresh.model.CustomerRefreshRequest;
+import com.gs.cft.digital.cftcustomerhub.application.complianceCustomerRefresh.model.CustomerRefreshStatus;
+import com.gs.cft.digital.cftcustomerhub.application.complianceCustomerRefresh.util.CSVReaderWriterUtil;
+import org.junit.Test;
+import org.supercsv.cellprocessor.constraint.NotNull;
+import org.supercsv.cellprocessor.ift.CellProcessor;
+import org.supercsv.io.CsvBeanWriter;
+import org.supercsv.io.ICsvBeanWriter;
+import org.supercsv.prefs.CsvPreference;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+public class CSVReaderWriterUtilTest {
+    @Test
+    public void testGetCSVBytesFromLockoutStatus() throws Exception{
+        List<CustomerRefreshStatus> refreshStatuses = new ArrayList<>();
+
+        CustomerRefreshStatus refreshStatus = new CustomerRefreshStatus();
+        refreshStatus.setCustomerId("TestCustomerId");
+        refreshStatus.setStatus("Success");
+
+        CustomerRefreshStatus refreshStatus1 = new CustomerRefreshStatus();
+        refreshStatus1.setCustomerId("TestCustomerId-1");
+        refreshStatus1.setStatus("Failure");
+
+        refreshStatuses.add(refreshStatus);
+        refreshStatuses.add(refreshStatus1);
+
+        byte[] bytes = CSVReaderWriterUtil.getCSVBytesFromCustomerRefreshStatus(refreshStatuses);
+
+        assertTrue("bytes size > 0", (bytes.length > 0));
+
     }
 
-    public String getCustomerId() {
-        return customerId;
+    @Test
+    public void testGetCustomerRefreshRequestsFromCSVBytes() throws Exception{
+        byte[] bytes = createCSVBytesForCustomerRefreshRequest();
+        List<CustomerRefreshRequest> refreshRequests = CSVReaderWriterUtil
+                                    .getCustomerRefreshRequestsFromCVSBytes(bytes);
+        assertTrue("List size", refreshRequests.size()==3);
+        assertEquals("first customerId", "testCustomerId-1",
+                refreshRequests.get(1).getCustomerId());
+        assertEquals("second customerId", "testCustomerId-2",
+                refreshRequests.get(2).getCustomerId());
     }
 
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
-    }
-}
+    private byte[] createCSVBytesForCustomerRefreshRequest() throws IOException {
+        StringWriter writer = new StringWriter();
+        ICsvBeanWriter beanWriter = new CsvBeanWriter(writer, CsvPreference.STANDARD_PREFERENCE);
+        final String[] header = new String[] { "CustomerId"};
+        final CellProcessor[] processors = getProcessors();
 
+        beanWriter.writeHeader(header);
+        List<CustomerRefreshRequest> refreshRequests = getCustomerRefreshRequests();
 
-public class CustomerRefreshStatus {
-    private String customerId;
-    private String status;
-
-    public String getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(String customerId) {
-        this.customerId = customerId;
+        for (CustomerRefreshRequest refreshRequest : refreshRequests) {
+            beanWriter.write(refreshRequest, header, processors);
+        }
+        beanWriter.close();
+        return writer.toString().getBytes();
     }
 
-    public String getStatus() {
-        return status;
+    private List<CustomerRefreshRequest> getCustomerRefreshRequests(){
+
+        List<CustomerRefreshRequest> refreshRequests = new ArrayList<>();
+        CustomerRefreshRequest refreshRequest = new CustomerRefreshRequest("testCustomerId-1");
+        refreshRequests.add(refreshRequest);
+        refreshRequest = new CustomerRefreshRequest("testCustomerId-2");
+        refreshRequests.add(refreshRequest);
+
+        return refreshRequests;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
+    private static CellProcessor[] getProcessors() {
+        final CellProcessor[] processors = new CellProcessor[] {
+                new NotNull() // CustomerId
 
-    @Override
-    public String toString() {
-        return "{customerId=\""+customerId+"\", status=\""+status+"\"}";
+        };
+        return processors;
     }
 }
