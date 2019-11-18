@@ -1,23 +1,15 @@
-<hystrix.version>1.5.9</hystrix.version>
+public class CustomerRefreshRequest {
+    private String customerId;
 
-<dependency>
-	<groupId>com.netflix.hystrix</groupId>
-	<artifactId>hystrix-metrics-event-stream</artifactId>
-	<version>${hystrix.version}</version>
-</dependency>
-<dependency>
-	<groupId>com.netflix.hystrix</groupId>
-	<artifactId>hystrix-codahale-metrics-publisher</artifactId>
-	<version>${hystrix.version}</version>
-</dependency>
-<dependency>
-	<groupId>com.netflix.hystrix</groupId>
-	<artifactId>hystrix-javanica</artifactId>
-	<version>${hystrix.version}</version>
-</dependency>
+    public CustomerRefreshRequest(String customerId){
+        this.customerId = customerId;
+    }
 
-<dependency>
-	<groupId>net.sf.supercsv</groupId>
-	<artifactId>super-csv</artifactId>
-	<version>2.4.0</version>
-</dependency>
+    public String getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(String customerId) {
+        this.customerId = customerId;
+    }
+}
