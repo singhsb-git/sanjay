@@ -1,1 +1,83 @@
- hystrix.command.default.execution.isolation.thread.timeoutInMilliseconds: 60000
+<dependency>
+			<groupId>net.jodah</groupId>
+			<artifactId>failsafe</artifactId>
+			<version>1.0.3</version>
+		</dependency>
+
+import com.gs.cft.digital.cftcustomerhub.application.documents.*;
+import com.gs.cft.digital.cftcustomerhub.application.scan.data.DocumentScanRequest;
+import com.gs.cft.digital.cftcustomerhub.artifact.api.model.DocArtifactDTO;
+import com.gs.cft.digital.cftcustomerhub.artifact.api.model.DocArtifactMetaDTO;
+import com.gs.cft.digital.cftcustomerhub.exception.InvalidStateException;
+import com.gs.cft.digital.cftdomain.exception.ClientErrorPropagatingException;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
+import net.jodah.failsafe.Failsafe;
+import net.jodah.failsafe.RetryPolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import javax.ws.rs.WebApplicationException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Service
+public class DocumentServiceAdapterImpl implements DocumentServiceAdapter {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DocumentServiceAdapterImpl.class);
+
+  private static final String TIMEOUT_KEY = "execution.isolation.thread.timeoutInMilliseconds";
+
+  private static final String DEFAULT_TIMEOUT_DOCS = "60000";
+
+  private final DocumentApiGateway documentApiGateway;
+
+  private final RetryPolicy retryPolicy;
+
+  public DocumentServiceAdapterImpl(DocumentApiGateway documentApiGateway,
+                                    RetryPolicy retryPolicy) {
+    this.documentApiGateway = documentApiGateway;
+    this.retryPolicy = retryPolicy;
+  }
+
+  @Override
+  @HystrixCommand(groupKey = "doc-service", commandKey = "storeDocument",
+      ignoreExceptions = ClientErrorPropagatingException.class,
+      commandProperties = {@HystrixProperty(name = TIMEOUT_KEY, value = DEFAULT_TIMEOUT_DOCS)})
+  public DocArtifactMetaDTO storeDocument(StoreDocumentCommand storeDocumentCommand) {
+
+    UploadedDocument uploadedDocument = documentApiGateway
+        .uploadDocument(new UploadDocumentRequest(storeDocumentCommand.getCustomerId(),
+            storeDocumentCommand.getFile(), storeDocumentCommand.scannable()));
+
+    if (!uploadedDocument.uploadedSuccessfully()) {
+      String msg = String.format(
+          "Document Gateway return successfully but failed to respond with an artifact id, %s",
+          storeDocumentCommand.commandFailedMessage());
+
+      throw new WebApplicationException(msg);
+    }
+
+    DocumentArtifactMeta documentMeta = uploadedDocument.getDocumentMeta();
+
+    return convert(documentMeta);
+  }
+
+  @Override
+  @HystrixCommand(groupKey = "doc-service", commandKey = "getDocument",
+      ignoreExceptions = ClientErrorPropagatingException.class,
+      commandProperties = {@HystrixProperty(name = TIMEOUT_KEY, value = DEFAULT_TIMEOUT_DOCS)})
+  public DocArtifactDTO retrieveDocument(DocumentId documentId) {
+
+    DocumentArtifactDTO artifact =
+        Failsafe.with(retryPolicy)
+            .onRetriesExceeded(ctx -> LOG
+                .error("Failed to get document artifact for document {}. Max retries exceeded.",
+                    documentId.getId()))
+            .get(() -> documentApiGateway.getDocument(documentId));
+
+    return convert(artifact);
+  }
