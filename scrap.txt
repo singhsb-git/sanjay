@@ -18,3 +18,59 @@ https://dzone.com/articles/spring-boot-jpa-hibernate-oracle
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         objectMapper.registerModule(sm);
     }
+    
+    import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
+public class JacksonUtil {
+
+    private static final Logger LOG = LoggerFactory.getLogger(JacksonUtil.class);
+
+    private JacksonUtil() {
+
+    }
+
+    public static class ZonedDateTimeSerializer extends JsonSerializer<ZonedDateTime> {
+
+        @Override
+        public void serialize(ZonedDateTime value, JsonGenerator gen, SerializerProvider serializers)
+                throws IOException {
+            gen.writeString(value.plusNanos(1000000).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        }
+    }
+
+    public static class ZonedDateTimeDeserializer extends JsonDeserializer<ZonedDateTime> {
+
+        @Override
+        public ZonedDateTime deserialize(JsonParser p, DeserializationContext ctx) throws IOException {
+            try {
+                return ZonedDateTime.parse(p.getText(), DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            } catch (DateTimeParseException e) {
+                LOG.warn("Ignoring unknown date time format {} {}", p.getText(), e.getMessage());
+                return ZonedDateTime.of(
+                        LocalDateTime
+                                .parse(getFormatted(p.getText()), DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                        ZoneId.of("America/New_York"));
+            }
+        }
+    }
+
+    private static String getFormatted(String text) {
+        int index = text != null ? text.indexOf(".") : -1;
+        return index > 0 ? text.substring(0, index) : text;
+    }
+}
+
