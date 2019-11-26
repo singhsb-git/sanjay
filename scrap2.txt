@@ -376,3 +376,19 @@ public class Debug {
     return Objects.hash(trace, message);
   }
 }
+
+------------------------- usage ----------
+
+ private static class TidResponseEnvelope extends Envelope<String> {
+        public TidResponseEnvelope(String payload) {
+            setPayload(payload);
+            setStatus(StatusEnum.OK);
+        }
+
+        public TidResponseEnvelope(String payload, Error error) {
+            setPayload(payload);
+            setError(error);
+            setStatus(StatusEnum.ERROR);
+        }
+    }
+------------------------------------------------
