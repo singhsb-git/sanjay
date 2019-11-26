@@ -1,0 +1,378 @@
+package com.gs.ccm.testengineering.common.model.envelope;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.gs.ccm.testengineering.common.http.CustomHeader;
+import org.hibernate.validator.constraints.NotEmpty;
+
+import javax.ws.rs.core.*;
+import java.util.List;
+import java.util.Objects;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class Envelope<T> {
+
+  public enum StatusEnum {
+    OK,
+    ERROR
+  }
+
+  @JsonProperty("requestId")
+  @NotEmpty
+  private String requestId;
+
+  @JsonProperty("status")
+  private StatusEnum status;
+
+  @JsonProperty("response")
+  private T payload;
+
+  @JsonProperty("error")
+  private Error error;
+
+  @JsonProperty("debug")
+  private Debug debug;
+
+  @JsonIgnore
+  private String sessionToken;
+
+  public Envelope() {
+  }
+
+  @Override
+  public String toString() {
+    return "Envelope{" +
+           "requestId='" + requestId + '\'' +
+           ", status=" + status +
+           ", debug=" + debug +
+           ", error=" + error +
+           '}';
+  }
+
+  /**
+   * @deprecated This is here to support refactoring while some endpoints do not have the supporting
+   * request headers param. Use the constructors that take request headers.
+   */
+  @Deprecated
+  public Envelope(T payload) {
+    this.status = StatusEnum.OK;
+    this.payload = payload;
+  }
+
+  /**
+   * Generates an "OK" envelope.
+   *
+   * @param payload        Payload data.
+   * @param requestHeaders Headers from the incoming request. The envelope's #requestId will be set
+   *                       with the value from the appropriate header.
+   */
+  public Envelope(T payload, HttpHeaders requestHeaders) {
+    this.status = StatusEnum.OK;
+    this.payload = payload;
+    setRequestId(requestHeaders);
+  }
+
+  /**
+   * Utility method that is useful for binding the payload of client call response to the
+   * appropriate type.
+   *
+   * @param restResponse   Response from a REST call, such as a POST.
+   * @param requestHeaders Headers from the upstream call, used to pass on request-id, etc.
+   * @param <T>            Type specification for payload binding.
+   * @return Envelope with payload bound to supplied type and requestId set per header values.
+   */
+  public static <T> Envelope<T> fromResponse(Response restResponse, HttpHeaders requestHeaders) {
+    Envelope<T> envelope = restResponse.readEntity(new GenericType<Envelope<T>>() {
+      // deliberately empty method body
+    });
+    envelope.setRequestId(requestHeaders);
+    return envelope;
+  }
+
+  /**
+   * Utility method that is useful for copying header values from an upstream request to a
+   * subsequent call.
+   *
+   * @param requestHeaders Headers from upstream call.
+   * @return Map that can be used in the {@link javax.ws.rs.client.Invocation.Builder#headers}
+   * method when constructing a new rest call.
+   */
+  public static MultivaluedMap<String, Object> copyHeaders(HttpHeaders requestHeaders) {
+    MultivaluedMap<String, Object> result = new MultivaluedHashMap<>();
+
+    if (requestHeaders != null) {
+      for (String name : CustomHeader.FORWARD) {
+        List<String> value = requestHeaders.getRequestHeader(name);
+        if(value != null){
+          value.stream().forEach(val->result.add(name,val));
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Special version of copyHeaders that takes a list of non-standard header names that should also
+   * be passed through.
+   *
+   * @param requestHeaders Headers from upstream call.
+   * @param specialHeaders The names of special headers that should survive the filtering.
+   * @return Map that can be used in the {@link javax.ws.rs.client.Invocation.Builder#headers}
+   * method when constructing a new rest call.
+   */
+  public static MultivaluedMap<String, Object> copyHeaders(HttpHeaders requestHeaders, List<String> specialHeaders) {
+    MultivaluedMap<String, Object> result = copyHeaders(requestHeaders);
+
+    if( specialHeaders != null ) {
+      for( String name : specialHeaders ) {
+        List<String> value = requestHeaders.getRequestHeader(name);
+        if( value != null ) {
+          value.stream().forEach(val->result.add(name,val));
+        }
+      }
+    }
+
+    return result;
+  }
+
+  @JsonIgnore
+  protected void setRequestId(HttpHeaders requestHeaders) {
+    this.requestId = requestHeaders.getRequestHeaders().getFirst(CustomHeader.REQUEST_ID);
+  }
+
+  public String getRequestId() {
+    return requestId;
+  }
+
+  public void setRequestId(String requestId) {
+    this.requestId = requestId;
+  }
+
+
+  public StatusEnum getStatus() {
+    return status;
+  }
+
+  public void setStatus(StatusEnum status) {
+    this.status = status;
+  }
+
+  public T getPayload() {
+    return payload;
+  }
+
+  public void setPayload(T payload) {
+    this.payload = payload;
+  }
+
+  public Error getError() {
+    return error;
+  }
+
+  public void setError(Error error) {
+    this.error = error;
+  }
+
+  public Debug getDebug() {
+    return debug;
+  }
+
+  public void setDebug(Debug debug) {
+    this.debug = debug;
+  }
+
+  public String getSessionToken() {
+    return sessionToken;
+  }
+
+  public void setSessionToken(String sessionToken) {
+    this.sessionToken = sessionToken;
+  }
+
+  public Envelope<T> withSessionToken(final String sessionToken) {
+    this.sessionToken = sessionToken;
+    return this;
+  }
+
+  public Envelope<T> withDebug(final Debug debug) {
+    this.debug = debug;
+    return this;
+  }
+
+  public Envelope<T> withError(final Error error) {
+    this.error = error;
+    return this;
+  }
+
+  public Envelope<T> withPayload(final T payload) {
+    this.payload = payload;
+    return this;
+  }
+
+  public Envelope<T> withStatus(final StatusEnum status) {
+    this.status = status;
+    return this;
+  }
+
+  public Envelope<T> withRequestId(final String requestId) {
+    this.requestId = requestId;
+    return this;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Envelope<?> envelope = (Envelope<?>) o;
+    return Objects.equals(requestId, envelope.requestId) &&
+           status == envelope.status &&
+           Objects.equals(payload, envelope.payload) &&
+           Objects.equals(error, envelope.error) &&
+           Objects.equals(debug, envelope.debug) &&
+           Objects.equals(sessionToken, envelope.sessionToken);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(requestId, status, payload, error, debug, sessionToken);
+  }
+}
+
+----------------------------
+
+package com.gs.ccm.testengineering.common.model.envelope;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Map;
+import java.util.Objects;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class Error {
+
+  private int code;
+  private String message;
+  private Map<String, Object> fields;
+
+  @Deprecated
+  public Error() {
+  }
+
+  @JsonCreator
+  public Error(@JsonProperty("code") int code, @JsonProperty("message") String message,
+               @JsonProperty("fields") Map<String, Object> fields) {
+    this.code = code;
+    this.message = message;
+    this.fields = fields;
+  }
+
+  public int getCode() {
+    return code;
+  }
+
+  public void setCode(int code) {
+    this.code = code;
+  }
+
+  public String getMessage() {
+    return message;
+  }
+
+  public void setMessage(String message) {
+    this.message = message;
+  }
+
+  public Map<String, Object> getFields() {
+    return fields;
+  }
+
+  public void setFields(Map<String, Object> fields) {
+    this.fields = fields;
+  }
+
+  @Override
+  public String toString() {
+    return "Error{" +
+           "code=" + code +
+           ", message='" + message + '\'' +
+           ", fields=" + fields +
+           '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Error error = (Error) o;
+    return code == error.code &&
+            Objects.equals(message, error.message) &&
+            Objects.equals(fields, error.fields);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(code, message, fields);
+  }
+}
+
+---------------------------
+
+package com.gs.ccm.testengineering.common.model.envelope;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Objects;
+
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class Debug {
+
+  private String trace;
+  private String message;
+
+  @JsonProperty
+  public String getTrace() {
+    return trace;
+  }
+
+  public void setTrace(String trace) {
+    this.trace = trace;
+  }
+
+  @JsonProperty
+  public String getMessage() {
+    return message;
+  }
+
+  public void setMessage(String message) {
+    this.message = message;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    Debug debug = (Debug) o;
+    return Objects.equals(trace, debug.trace) && Objects.equals(message, debug.message);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(trace, message);
+  }
+}
