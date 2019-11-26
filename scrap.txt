@@ -1,2 +1,20 @@
 https://www.mkyong.com/spring-boot/spring-boot-spring-data-jpa-oracle-example/ --> *****
 https://dzone.com/articles/spring-boot-jpa-hibernate-oracle
+
+@Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        configureObjectMapper(objectMapper);
+        return objectMapper;
+    }
+
+    public static void configureObjectMapper(ObjectMapper objectMapper) {
+        SimpleModule sm = new SimpleModule();
+        sm.addSerializer(ZonedDateTime.class, new JacksonUtil.ZonedDateTimeSerializer());
+        sm.addDeserializer(ZonedDateTime.class, new JacksonUtil.ZonedDateTimeDeserializer());
+        objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        objectMapper.registerModule(sm);
+    }
