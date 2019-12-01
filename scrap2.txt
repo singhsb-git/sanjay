@@ -392,3 +392,28 @@ public class Debug {
         }
     }
 ------------------------------------------------
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+public final class CustomHeader {
+
+  private CustomHeader() {
+    // hide utility class constructor
+  }
+
+  public static final String SESSION_TOKEN = "X-Session-Token";
+  public static final String REQUESTED_WITH = "X-Requested-With";
+  public static final String AUTH_TOKEN = "X-Auth-Token";
+  public static final String REQUEST_ID = "X-Request-ID";
+  public static final String FORWARDED_HEADER = "X-Forwarded-For";
+  public static final String AUTHORIZATION = "Authorization";
+  public static final String PROGRAM_HEADER = "X-Program";
+
+  /**
+   * Contains all header names that should be forwarded to downstream requests
+   */
+  public static final List<String> FORWARD = Collections.unmodifiableList(
+          Arrays.asList(REQUEST_ID, AUTHORIZATION, FORWARDED_HEADER, PROGRAM_HEADER));
+}
