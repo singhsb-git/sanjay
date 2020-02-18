@@ -1,0 +1,117 @@
+
+------------- POM --------------------------------
+<properties>
+	    <hystrix.version>1.5.9</hystrix.version>
+	</properties>
+  
+        <!-- hystrix  -->		
+		<dependency>
+			<groupId>com.netflix.hystrix</groupId>
+			<artifactId>hystrix-metrics-event-stream</artifactId>
+			<version>${hystrix.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.netflix.hystrix</groupId>
+			<artifactId>hystrix-codahale-metrics-publisher</artifactId>
+			<version>${hystrix.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.netflix.hystrix</groupId>
+			<artifactId>hystrix-javanica</artifactId>
+			<version>${hystrix.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.jodah</groupId>
+			<artifactId>failsafe</artifactId>
+			<version>1.0.3</version>
+		</dependency>
+    
+------------- property file --------------------------
+hystrix.command.default.execution.isolation.thread.timeoutInMilliseconds = 60000
+ 
+retryPolicy.backoffDelay = 1
+retryPolicy.backoffMaxDelay = 30
+retryPolicy.maxRetries = 3
+
+-------------- Main config file ----------------------------------    
+@Bean
+	  public RetryPolicy retryPolicy() { 
+		
+	    int delay = Integer.parseInt(env.getProperty("retryPolicy.backoffDelay"));
+	    int maxDelay = Integer.parseInt( env.getProperty("retryPolicy.backoffMaxDelay"));
+	    int maxRetries = Integer.parseInt(env.getProperty("retryPolicy.maxRetries"));
+
+	    return new RetryPolicy()
+	        .retryOn(exception -> !(exception instanceof ClientErrorPropagatingException))
+	        .withBackoff(delay, maxDelay, TimeUnit.SECONDS)
+	        .withMaxRetries(maxRetries);
+	  }
+
+---------------  Config file ------------------------
+public class RetryPolicyConfig {
+
+	  private static final Integer DEFAULT_MAX_RETRIES = 3;
+	  private static final Integer DEFAULT_BACKOFF_DELAY = 1;
+	  private static final Integer DEFAULT_BACKOFF_MAXDELAY = 30;
+	  
+	  private Integer maxRetries = DEFAULT_MAX_RETRIES;
+	  private Integer backoffDelay = DEFAULT_BACKOFF_DELAY;
+	  private Integer backoffMaxDelay = DEFAULT_BACKOFF_MAXDELAY;
+	  
+	  public Integer getMaxRetries() {
+	    return maxRetries;
+	  }
+	  public void setMaxRetries(Integer maxRetries) {
+	    this.maxRetries = maxRetries;
+	  }
+	  public Integer getBackoffDelay() {
+	    return backoffDelay;
+	  }
+	  public void setBackoffDelay(Integer backoffDelay) {
+	    this.backoffDelay = backoffDelay;
+	  }
+	  public Integer getBackoffMaxDelay() {
+	    return backoffMaxDelay;
+	  }
+	  public void setBackoffMaxDelay(Integer backoffMaxDelay) {
+	    this.backoffMaxDelay = backoffMaxDelay;
+	  }
+	  
+	  
+	}
+  --------------------------------client code --------------------------------
+ @Autowired 
+ private final RetryPolicy retryPolicy;
+ 
+ private static final String TIMEOUT_KEY = "execution.isolation.thread.timeoutInMilliseconds";
+ private static final String DEFAULT_TIMEOUT = "60000";
+
+@SuppressWarnings("unchecked")
+	@HystrixCommand(groupKey = "OpenBankApi-service", commandKey = "getTransactionList",
+    ignoreExceptions = ClientErrorPropagatingException.class,
+    commandProperties = {@HystrixProperty(name = TIMEOUT_KEY, value = DEFAULT_TIMEOUT)})
+	public Transactions getTransactionList(String bankId,	String accountId, String viewId){
+		Transactions opResponse = null;
+		
+		opResponse = Failsafe.with(retryPolicy)
+            .onRetriesExceeded(ctx -> LOG.error("*** Did not get list of transactions for Bank={}. Max retries exceeded.", bankId))
+            .get(() -> getTransactions(bankId, accountId, viewId));
+		
+		return opResponse;
+		}
+    
+    private Transactions getTransactions(String bankId,	String accountId, String viewId) throws IOException {
+	......
+
+....
+		
+			if (conn.getResponseCode() != 200) {
+				throw new ClientErrorPropagatingException("Failed : HTTP error code : "
+						+ conn.getResponseCode());
+			}
+		
+........
+	    
+		return opResponse;
+		
+	}
